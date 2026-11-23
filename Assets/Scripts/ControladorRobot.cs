@@ -16,17 +16,42 @@ public class ControladorRobot : MonoBehaviour
     private int casillaInicialY;
     private Direccion direccionInicial;
     private Quaternion rotacionInicial;
+    private Vector3 escalaInicial;
+    private bool configuradoPorNivel = false;
+
+    void Awake()
+    {
+        escalaInicial = transform.localScale;
+    }
 
     void Start()
     {
-        casillaInicialX = casillaX;
-        casillaInicialY = casillaY;
-        direccionInicial = direccionActual;
-        rotacionInicial = transform.rotation;
-
-        if (gestorCuadricula != null)
+        if (!configuradoPorNivel)
         {
-            transform.position = gestorCuadricula.CuadriculaAPosicionMundo(casillaX, casillaY);
+            EstablecerEstadoInicial(casillaX, casillaY, direccionActual);
+        }
+    }
+
+    public void EstablecerEstadoInicial(int x, int y, Direccion dir)
+    {
+        configuradoPorNivel = true;
+        casillaInicialX = x;
+        casillaInicialY = y;
+        direccionInicial = dir;
+        rotacionInicial = DireccionARotacion(dir);
+
+        RestaurarPosicionInicial();
+    }
+
+    private Quaternion DireccionARotacion(Direccion dir)
+    {
+        switch (dir)
+        {
+            case Direccion.Norte: return Quaternion.Euler(0, 0, 90);
+            case Direccion.Oeste: return Quaternion.Euler(0, 0, 180);
+            case Direccion.Sur: return Quaternion.Euler(0, 0, 270);
+            case Direccion.Este:
+            default: return Quaternion.Euler(0, 0, 0);
         }
     }
 
@@ -41,7 +66,25 @@ public class ControladorRobot : MonoBehaviour
         if (gestorCuadricula != null)
         {
             transform.position = gestorCuadricula.CuadriculaAPosicionMundo(casillaX, casillaY);
+            transform.localScale = escalaInicial * gestorCuadricula.ObtenerFactorEscala();
         }
+    }
+
+    public bool HayObstaculoAlFrente()
+    {
+        int frenteX = casillaX;
+        int frenteY = casillaY;
+
+        switch (direccionActual)
+        {
+            case Direccion.Norte: frenteY++; break;
+            case Direccion.Este: frenteX++; break;
+            case Direccion.Sur: frenteY--; break;
+            case Direccion.Oeste: frenteX--; break;
+        }
+
+        if (gestorCuadricula == null) return true;
+        return !gestorCuadricula.EsTransitable(frenteX, frenteY);
     }
 
     public IEnumerator EjecutarAvanzar(Action<bool> resultado)
@@ -73,7 +116,6 @@ public class ControladorRobot : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning($"[Colisión] Bloqueado en ({destinoX}, {destinoY}).");
             yield return new WaitForSeconds(0.2f);
             resultado?.Invoke(false);
         }
