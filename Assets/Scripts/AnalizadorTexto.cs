@@ -43,12 +43,38 @@ public class AnalizadorTexto : MonoBehaviour
             return;
         }
 
-        // Comprobar presupuesto de líneas del nivel
+        // 1. Comprobar presupuesto de líneas del nivel
         int limiteLineas = gestorNiveles != null ? gestorNiveles.ObtenerLimiteLineas() : 0;
         if (limiteLineas > 0 && lineasLimpias.Count > limiteLineas)
         {
-            MostrarMensaje($"> [ERR] LÍMITE EXCEDIDO ({lineasLimpias.Count}/{limiteLineas} líneas).\nOptimiza tu código usando REPETIR.", colorError);
+            MostrarMensaje($"> [ERR] LÍMITE EXCEDIDO ({lineasLimpias.Count}/{limiteLineas} líneas).\nOptimiza tu código usando estructuras de control.", colorError);
             return;
+        }
+
+        // 2. Comprobar comandos obligatorios de la lección
+        if (gestorNiveles != null)
+        {
+            List<string> requeridos = gestorNiveles.ObtenerComandosRequeridos();
+            foreach (string req in requeridos)
+            {
+                string reqUpper = req.Trim().ToUpper();
+                bool encontrado = false;
+
+                foreach (string linea in lineasLimpias)
+                {
+                    if (linea.ToUpper().StartsWith(reqUpper))
+                    {
+                        encontrado = true;
+                        break;
+                    }
+                }
+
+                if (!encontrado)
+                {
+                    MostrarMensaje($"> [ERR] REQUISITO DE LECCIÓN:\nEste nivel requiere utilizar '{reqUpper}' en tu algoritmo.", colorError);
+                    return;
+                }
+            }
         }
 
         if (controladorRobot != null)

@@ -9,6 +9,7 @@ public class DefinicionNivel
     [TextArea(2, 4)] public string objetivo;
     [TextArea(4, 10)] public string guiaConcepto;
     public int maxLineas = 0; // 0 = sin límite
+    public List<string> comandosRequeridos = new List<string>();
     public int ancho = 8;
     public int alto = 8;
     public Vector2Int inicioRobot;
@@ -60,6 +61,15 @@ public class GestorNiveles : MonoBehaviour
         return 0;
     }
 
+    public List<string> ObtenerComandosRequeridos()
+    {
+        if (indiceNivelActual >= 0 && indiceNivelActual < niveles.Count && niveles[indiceNivelActual].comandosRequeridos != null)
+        {
+            return niveles[indiceNivelActual].comandosRequeridos;
+        }
+        return new List<string>();
+    }
+
     public void CargarNivel(int indice)
     {
         if (indice < 0 || indice >= niveles.Count) return;
@@ -94,7 +104,6 @@ public class GestorNiveles : MonoBehaviour
 
         if (textoRetroalimentacion != null)
         {
-            // Si aún no conectas el panel derecho, muestra la guía aquí al iniciar el nivel
             if (textoManualSintaxis == null && !string.IsNullOrEmpty(nivel.guiaConcepto))
             {
                 textoRetroalimentacion.text = nivel.guiaConcepto;
@@ -178,20 +187,22 @@ public class GestorNiveles : MonoBehaviour
             }
         });
 
-        // NIVEL 2: Bucles REPETIR
+        // NIVEL 2: Bucles REPETIR (Pasillo en escalera cerrado)
         niveles.Add(new DefinicionNivel
         {
             tituloNivel = "ESCALERA DE BUCLES",
-            objetivo = "Sube en escalera hasta la meta sin pasarte del límite de líneas.",
+            objetivo = "Sube el pasillo en escalera usando REPETIR (obligatorio).",
             guiaConcepto =
                 "[ LECCIÓN 2: BUCLES (REPETIR) ]\n" +
-                "Cuando notas un patrón que se repite, usa un bucle para ahorrar líneas:\n\n" +
-                "REPETIR 4 {\n" +
-                "    AVANZAR\n" +
+                "Este nivel exige usar un bucle para repetir el patrón del escalón:\n\n" +
+                "REPETIR 5 {\n" +
                 "    GIRAR_IZQ\n" +
-                "}\n\n" +
-                "Todo lo que esté dentro de { ... } se ejecutará el número de veces indicado.",
+                "    AVANZAR\n" +
+                "    GIRAR_DER\n" +
+                "    AVANZAR\n" +
+                "}",
             maxLineas = 6,
+            comandosRequeridos = new List<string> { "REPETIR" },
             ancho = 7,
             alto = 7,
             inicioRobot = new Vector2Int(0, 0),
@@ -203,96 +214,135 @@ public class GestorNiveles : MonoBehaviour
                 new Vector2Int(2, 1),
                 new Vector2Int(3, 2),
                 new Vector2Int(4, 3),
-                new Vector2Int(5, 4)
+                new Vector2Int(5, 4),
+                new Vector2Int(0, 2),
+                new Vector2Int(1, 3),
+                new Vector2Int(2, 4),
+                new Vector2Int(3, 5),
+                new Vector2Int(4, 6)
             }
         });
 
-        // NIVEL 3: Estados y objetivos intermedios
+        // NIVEL 3: Rutas en zigzag y nodos múltiples
         niveles.Add(new DefinicionNivel
         {
-            tituloNivel = "NODO DE ENERGÍA",
-            objetivo = "Activa el nodo amarillo para desbloquear la salida verde.",
+            tituloNivel = "LABERINTO DE ENERGÍA",
+            objetivo = "Recoge los dos nodos amarillos en zigzag antes de entrar a la meta.",
             guiaConcepto =
-                "[ LECCIÓN 3: ESTADOS Y RUTAS ]\n" +
-                "La salida permanecerá bloqueada (verde oscuro) hasta que recojas todos los nodos amarillos.\n\n" +
-                "• Consejo de optimización:\n" +
-                "  Combina movimientos múltiples como AVANZAR 3 con giros para mantener tu código corto.",
-            maxLineas = 8,
-            ancho = 7,
-            alto = 7,
-            inicioRobot = new Vector2Int(0, 3),
-            direccionInicial = Direccion.Este,
-            posicionMeta = new Vector2Int(6, 3),
-            obstaculos = new List<Vector2Int>
-            {
-                new Vector2Int(3, 2),
-                new Vector2Int(3, 3),
-                new Vector2Int(3, 4)
-            },
-            nodosEnergia = new List<Vector2Int>
-            {
-                new Vector2Int(3, 6)
-            }
-        });
-
-        // NIVEL 4: Condicionales SI_OBSTACULO / SINO
-        niveles.Add(new DefinicionNivel
-        {
-            tituloNivel = "SENSOR INTELIGENTE",
-            objetivo = "Esquiva la diagonal usando el sensor de proximidad.",
-            guiaConcepto =
-                "[ LECCIÓN 4: CONDICIONALES ]\n" +
-                "Permiten que el robot tome decisiones según lo que detecte frente a él:\n\n" +
-                "SI_OBSTACULO {\n" +
-                "    GIRAR_IZQ\n" +
-                "} SINO {\n" +
-                "    AVANZAR\n" +
-                "}\n\n" +
-                "Combínalo dentro de un REPETIR para avanzar automáticamente.",
+                "[ LECCIÓN 3: OPTIMIZACIÓN DE RUTA ]\n" +
+                "La salida verde permanece bloqueada hasta recoger todos los nodos amarillos.\n\n" +
+                "• Usa AVANZAR N (ej. AVANZAR 6) para recorrer pasillos largos en una sola línea y respetar el límite de 10 líneas.",
             maxLineas = 10,
             ancho = 8,
             alto = 8,
             inicioRobot = new Vector2Int(0, 0),
             direccionInicial = Direccion.Este,
-            posicionMeta = new Vector2Int(7, 4),
+            posicionMeta = new Vector2Int(7, 7),
             obstaculos = new List<Vector2Int>
             {
+                // Muro izquierdo (obliga a subir primero)
                 new Vector2Int(2, 0),
-                new Vector2Int(3, 1),
-                new Vector2Int(4, 2),
-                new Vector2Int(5, 3)
-            }
-        });
-
-        // NIVEL 5: Integración total
-        niveles.Add(new DefinicionNivel
-        {
-            tituloNivel = "PROTOCOLO FINAL",
-            objetivo = "Activa ambos nodos amarillos para abrir la compuerta de salida.",
-            guiaConcepto =
-                "[ DESAFÍO INTEGRADOR ]\n" +
-                "Aplica todo lo aprendido:\n\n" +
-                "1. Traza una ruta que pase por los dos nodos amarillos.\n" +
-                "2. Usa REPETIR en los tramos largos para respetar el máximo de 9 líneas.\n" +
-                "3. Dirígete a la meta una vez iluminada.",
-            maxLineas = 9,
-            ancho = 8,
-            alto = 8,
-            inicioRobot = new Vector2Int(0, 0),
-            direccionInicial = Direccion.Norte,
-            posicionMeta = new Vector2Int(4, 2),
-            obstaculos = new List<Vector2Int>
-            {
+                new Vector2Int(2, 1),
+                new Vector2Int(2, 2),
+                new Vector2Int(2, 3),
                 new Vector2Int(2, 4),
-                new Vector2Int(3, 4),
-                new Vector2Int(4, 4),
+                // Muro derecho (obliga a bajar por el centro antes de subir a la meta)
+                new Vector2Int(5, 3),
                 new Vector2Int(5, 4),
-                new Vector2Int(6, 4)
+                new Vector2Int(5, 5),
+                new Vector2Int(5, 6),
+                new Vector2Int(5, 7)
             },
             nodosEnergia = new List<Vector2Int>
             {
-                new Vector2Int(0, 6),
-                new Vector2Int(7, 6)
+                new Vector2Int(1, 6),
+                new Vector2Int(6, 1)
+            }
+        });
+
+        // NIVEL 4: Condicionales SI_OBSTACULO / SINO (Corredor cerrado)
+        niveles.Add(new DefinicionNivel
+        {
+            tituloNivel = "SENSOR INTELIGENTE",
+            objetivo = "Usa SI_OBSTACULO (obligatorio) dentro de REPETIR para cruzar el corredor.",
+            guiaConcepto =
+                "[ LECCIÓN 4: CONDICIONALES ]\n" +
+                "Permiten decidir qué hacer según lo que detecte el sensor frontal:\n\n" +
+                "REPETIR 10 {\n" +
+                "    SI_OBSTACULO {\n" +
+                "        GIRAR_IZQ\n" +
+                "        AVANZAR\n" +
+                "        GIRAR_DER\n" +
+                "    } SINO {\n" +
+                "        AVANZAR\n" +
+                "    }\n" +
+                "}",
+            maxLineas = 10,
+            comandosRequeridos = new List<string> { "SI_OBSTACULO" },
+            ancho = 8,
+            alto = 8,
+            inicioRobot = new Vector2Int(0, 0),
+            direccionInicial = Direccion.Este,
+            posicionMeta = new Vector2Int(6, 4),
+            obstaculos = new List<Vector2Int>
+            {
+                new Vector2Int(2, 0),
+                new Vector2Int(2, 1),
+                new Vector2Int(4, 1),
+                new Vector2Int(4, 2),
+                new Vector2Int(5, 2),
+                new Vector2Int(5, 3),
+                new Vector2Int(6, 3),
+                new Vector2Int(0, 1),
+                new Vector2Int(0, 2),
+                new Vector2Int(0, 3),
+                new Vector2Int(2, 3),
+                new Vector2Int(2, 4),
+                new Vector2Int(3, 4),
+                new Vector2Int(3, 5)
+            }
+        });
+
+        // NIVEL 5: Reto final en espiral 10x10
+        niveles.Add(new DefinicionNivel
+        {
+            tituloNivel = "NÚCLEO EN ESPIRAL",
+            objetivo = "Navega la espiral hasta el centro recolectando los 5 nodos. Requiere REPETIR y SI_OBSTACULO.",
+            guiaConcepto =
+                "[ DESAFÍO FINAL: ESPIRAL ]\n" +
+                "En este laberinto de 10x10 debes combinar REPETIR y SI_OBSTACULO en máximo 8 líneas:\n\n" +
+                "1. Si hay obstáculo al frente, gira a la izquierda (GIRAR_IZQ); si no, avanza.\n" +
+                "2. Calibra las repeticiones (entre 65 y 70 ciclos) hasta detenerte justo sobre la meta central.",
+            maxLineas = 8,
+            comandosRequeridos = new List<string> { "REPETIR", "SI_OBSTACULO" },
+            ancho = 10,
+            alto = 10,
+            inicioRobot = new Vector2Int(0, 0),
+            direccionInicial = Direccion.Este,
+            posicionMeta = new Vector2Int(5, 5),
+            obstaculos = new List<Vector2Int>
+            {
+                // Anillo exterior de la espiral
+                new Vector2Int(0, 1), new Vector2Int(1, 1), new Vector2Int(2, 1), new Vector2Int(3, 1), new Vector2Int(4, 1),
+                new Vector2Int(5, 1), new Vector2Int(6, 1), new Vector2Int(7, 1), new Vector2Int(8, 1),
+                new Vector2Int(8, 2), new Vector2Int(8, 3), new Vector2Int(8, 4), new Vector2Int(8, 5),
+                new Vector2Int(8, 6), new Vector2Int(8, 7), new Vector2Int(8, 8),
+                new Vector2Int(7, 8), new Vector2Int(6, 8), new Vector2Int(5, 8), new Vector2Int(4, 8),
+                new Vector2Int(3, 8), new Vector2Int(2, 8), new Vector2Int(1, 8),
+                new Vector2Int(1, 7), new Vector2Int(1, 6), new Vector2Int(1, 5), new Vector2Int(1, 4), new Vector2Int(1, 3),
+                // Anillo interior de la espiral
+                new Vector2Int(2, 3), new Vector2Int(3, 3), new Vector2Int(4, 3), new Vector2Int(5, 3), new Vector2Int(6, 3),
+                new Vector2Int(6, 4), new Vector2Int(6, 5), new Vector2Int(6, 6),
+                new Vector2Int(5, 6), new Vector2Int(4, 6), new Vector2Int(3, 6),
+                new Vector2Int(3, 5), new Vector2Int(4, 5)
+            },
+            nodosEnergia = new List<Vector2Int>
+            {
+                new Vector2Int(9, 0),
+                new Vector2Int(9, 9),
+                new Vector2Int(0, 9),
+                new Vector2Int(7, 2),
+                new Vector2Int(2, 7)
             }
         });
     }
