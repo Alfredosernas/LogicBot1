@@ -54,13 +54,27 @@ public class MotorEjecucion : MonoBehaviour
     {
         if (gestorCuadricula != null && gestorCuadricula.EsMeta(robot.casillaX, robot.casillaY))
         {
-            if (analizadorTexto != null)
+            if (gestorCuadricula.MetaDesbloqueada())
             {
-                analizadorTexto.NotificarResultado(true, "¡NIVEL COMPLETADO!\n\nHas alcanzado la meta exitosamente.");
+                if (analizadorTexto != null)
+                {
+                    analizadorTexto.NotificarResultado(true, "¡NIVEL COMPLETADO!\n\nHas alcanzado la meta exitosamente.");
+                }
+                if (gestorNiveles != null)
+                {
+                    gestorNiveles.NivelCompletado();
+                }
             }
-            if (gestorNiveles != null)
+            else
             {
-                gestorNiveles.NivelCompletado();
+                if (analizadorTexto != null)
+                {
+                    analizadorTexto.NotificarResultado(false, "META BLOQUEADA\n\nDebes recoger todos los nodos de energía amarillos antes de entrar en la meta.");
+                }
+                if (gestorNiveles != null)
+                {
+                    gestorNiveles.OcultarBotonSiguiente();
+                }
             }
         }
         else

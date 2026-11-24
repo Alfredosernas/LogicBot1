@@ -65,8 +65,10 @@ public class ControladorRobot : MonoBehaviour
 
         if (gestorCuadricula != null)
         {
+            gestorCuadricula.ReiniciarElementosNivel();
             transform.position = gestorCuadricula.CuadriculaAPosicionMundo(casillaX, casillaY);
             transform.localScale = escalaInicial * gestorCuadricula.ObtenerFactorEscala();
+            gestorCuadricula.ComprobarYRecogerNodo(casillaX, casillaY);
         }
     }
 
@@ -112,6 +114,7 @@ public class ControladorRobot : MonoBehaviour
                 yield return null;
             }
             transform.position = posicionDestino;
+            gestorCuadricula.ComprobarYRecogerNodo(casillaX, casillaY);
             resultado?.Invoke(true);
         }
         else

@@ -12,11 +12,42 @@ public class AnalizadorTexto : MonoBehaviour
     [SerializeField] private TextMeshProUGUI textoRetroalimentacion;
     [SerializeField] private GestorNiveles gestorNiveles;
 
+    private readonly Color colorExito = new Color(0.20f, 1.00f, 0.40f);
+    private readonly Color colorError = new Color(1.00f, 0.30f, 0.30f);
+    private readonly Color colorAviso = new Color(1.00f, 0.72f, 0.15f);
+    private readonly Color colorInfo = new Color(0.35f, 0.85f, 1.00f);
+
     public void ProcesarInstrucciones()
     {
+        if (gestorNiveles != null) gestorNiveles.OcultarBotonSiguiente();
+
         if (campoConsolaEntrada == null || string.IsNullOrWhiteSpace(campoConsolaEntrada.text))
         {
-            MostrarMensaje("Error: Escribe un comando antes de ejecutar.", Color.yellow);
+            MostrarMensaje("> [AVISO] Consola vacía. Escribe un comando antes de ejecutar.", colorAviso);
+            return;
+        }
+
+        string[] lineasCrudas = campoConsolaEntrada.text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        List<string> lineasLimpias = new List<string>();
+        foreach (string l in lineasCrudas)
+        {
+            if (!string.IsNullOrWhiteSpace(l))
+            {
+                lineasLimpias.Add(l.Trim());
+            }
+        }
+
+        if (lineasLimpias.Count == 0)
+        {
+            MostrarMensaje("> [AVISO] Consola vacía. Escribe un comando antes de ejecutar.", colorAviso);
+            return;
+        }
+
+        // Comprobar presupuesto de líneas del nivel
+        int limiteLineas = gestorNiveles != null ? gestorNiveles.ObtenerLimiteLineas() : 0;
+        if (limiteLineas > 0 && lineasLimpias.Count > limiteLineas)
+        {
+            MostrarMensaje($"> [ERR] LÍMITE EXCEDIDO ({lineasLimpias.Count}/{limiteLineas} líneas).\nOptimiza tu código usando REPETIR.", colorError);
             return;
         }
 
@@ -25,17 +56,17 @@ public class AnalizadorTexto : MonoBehaviour
             controladorRobot.RestaurarPosicionInicial();
         }
 
-        string[] lineasDeCodigo = campoConsolaEntrada.text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        string[] lineasDeCodigo = lineasLimpias.ToArray();
         int indiceLinea = 0;
         List<Instruccion> instruccionesFinales = new List<Instruccion>();
 
         if (!ParsearBloque(lineasDeCodigo, ref indiceLinea, instruccionesFinales, false, out string mensajeError, out _))
         {
-            MostrarMensaje(mensajeError, Color.red);
+            MostrarMensaje($"> [ERR] {mensajeError}", colorError);
             return;
         }
 
-        MostrarMensaje("Programa validado con éxito.\nEjecutando algoritmo...", Color.green);
+        MostrarMensaje($"> [SYS] Compilación OK ({lineasLimpias.Count} líneas).\n> [RUN] Ejecutando secuencia...", colorExito);
 
         if (motorEjecucion != null)
         {
@@ -57,23 +88,21 @@ public class AnalizadorTexto : MonoBehaviour
 
             string lineaUpper = linea.ToUpper();
 
-            // Cierre de bloque solo: "}"
             if (lineaUpper == "}")
             {
                 if (!esBloqueInterno)
                 {
-                    error = $"Error en línea {indice}: Llave de cierre '}}' inesperada.";
+                    error = $"Línea {indice}: Llave de cierre '}}' inesperada.";
                     return false;
                 }
                 return true;
             }
 
-            // Cierre de bloque seguido de SINO en la misma línea: "} SINO {"
             if (lineaUpper.StartsWith("}"))
             {
                 if (!esBloqueInterno)
                 {
-                    error = $"Error en línea {indice}: Llave de cierre '}}' inesperada.";
+                    error = $"Línea {indice}: Llave de cierre '}}' inesperada.";
                     return false;
                 }
 
@@ -88,7 +117,7 @@ public class AnalizadorTexto : MonoBehaviour
                         }
                         else
                         {
-                            error = $"Error en línea {indice}: Falta '{{' tras SINO.";
+                            error = $"Línea {indice}: Falta '{{' tras SINO.";
                             return false;
                         }
                     }
@@ -96,24 +125,23 @@ public class AnalizadorTexto : MonoBehaviour
                     return true;
                 }
 
-                error = $"Error en línea {indice}: Texto no reconocido '{resto}' después de '}}'.";
+                error = $"Línea {indice}: Texto no reconocido '{resto}' después de '}}'.";
                 return false;
             }
 
-            // Bloque REPETIR
             if (lineaUpper.StartsWith("REPETIR"))
             {
                 string[] partes = lineaUpper.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (partes.Length < 2 || !int.TryParse(partes[1], out int veces))
                 {
-                    error = $"Error sintáctico en línea {indice}: Formato esperado 'REPETIR [número] {{'.";
+                    error = $"Línea {indice}: Formato esperado 'REPETIR [número] {{'.";
                     return false;
                 }
 
                 if (!linea.Contains("{"))
                 {
                     if (indice < lineas.Length && lineas[indice].Trim() == "{") indice++;
-                    else { error = $"Error en línea {indice}: Falta '{{' al abrir REPETIR."; return false; }
+                    else { error = $"Línea {indice}: Falta '{{' al abrir REPETIR."; return false; }
                 }
 
                 List<Instruccion> cuerpoBucle = new List<Instruccion>();
@@ -121,7 +149,7 @@ public class AnalizadorTexto : MonoBehaviour
 
                 if (sinoEnBucle)
                 {
-                    error = $"Error en línea {indice}: 'SINO' no puede cerrar un bloque REPETIR.";
+                    error = $"Línea {indice}: 'SINO' no puede cerrar un bloque REPETIR.";
                     return false;
                 }
 
@@ -129,13 +157,12 @@ public class AnalizadorTexto : MonoBehaviour
                 continue;
             }
 
-            // Bloque Condicional SI_OBSTACULO
             if (lineaUpper.StartsWith("SI_OBSTACULO"))
             {
                 if (!linea.Contains("{"))
                 {
                     if (indice < lineas.Length && lineas[indice].Trim() == "{") indice++;
-                    else { error = $"Error en línea {indice}: Falta '{{' tras SI_OBSTACULO."; return false; }
+                    else { error = $"Línea {indice}: Falta '{{' tras SI_OBSTACULO."; return false; }
                 }
 
                 List<Instruccion> bloqueSi = new List<Instruccion>();
@@ -143,14 +170,12 @@ public class AnalizadorTexto : MonoBehaviour
 
                 List<Instruccion> bloqueSino = null;
 
-                // Caso 1: "} SINO {" en la misma línea
                 if (sinoEnMismaLinea)
                 {
                     bloqueSino = new List<Instruccion>();
                     if (!ParsearBloque(lineas, ref indice, bloqueSino, true, out error, out bool sinoDuplicado)) return false;
-                    if (sinoDuplicado) { error = $"Error en línea {indice}: Cláusula 'SINO' duplicada."; return false; }
+                    if (sinoDuplicado) { error = $"Línea {indice}: Cláusula 'SINO' duplicada."; return false; }
                 }
-                // Caso 2: "SINO {" en la línea siguiente
                 else if (indice < lineas.Length && lineas[indice].Trim().ToUpper().StartsWith("SINO"))
                 {
                     string lineaSino = lineas[indice].Trim().ToUpper();
@@ -159,19 +184,18 @@ public class AnalizadorTexto : MonoBehaviour
                     if (!lineaSino.Contains("{"))
                     {
                         if (indice < lineas.Length && lineas[indice].Trim() == "{") indice++;
-                        else { error = $"Error en línea {indice}: Falta '{{' tras SINO."; return false; }
+                        else { error = $"Línea {indice}: Falta '{{' tras SINO."; return false; }
                     }
 
                     bloqueSino = new List<Instruccion>();
                     if (!ParsearBloque(lineas, ref indice, bloqueSino, true, out error, out bool sinoDuplicado)) return false;
-                    if (sinoDuplicado) { error = $"Error en línea {indice}: Cláusula 'SINO' duplicada."; return false; }
+                    if (sinoDuplicado) { error = $"Línea {indice}: Cláusula 'SINO' duplicada."; return false; }
                 }
 
                 listaDestino.Add(new InstruccionCondicional(bloqueSi, bloqueSino));
                 continue;
             }
 
-            // Comandos individuales
             if (!InterpretarComandoSimple(linea, listaDestino, out error, indice))
             {
                 return false;
@@ -180,7 +204,7 @@ public class AnalizadorTexto : MonoBehaviour
 
         if (esBloqueInterno)
         {
-            error = "Error de sintaxis: Falta cerrar una llave '}' al final del bloque.";
+            error = "Sintaxis incompleta: Falta cerrar una llave '}' al final del bloque.";
             return false;
         }
 
@@ -221,7 +245,7 @@ public class AnalizadorTexto : MonoBehaviour
                 return true;
 
             default:
-                error = $"Error en Línea {numLinea}: Comando '{partes[0]}' no reconocido.";
+                error = $"Línea {numLinea}: Comando '{partes[0]}' no reconocido.";
                 return false;
         }
     }
@@ -230,12 +254,14 @@ public class AnalizadorTexto : MonoBehaviour
     {
         if (motorEjecucion != null) motorEjecucion.DetenerSecuencia();
         if (controladorRobot != null) controladorRobot.RestaurarPosicionInicial();
-        MostrarMensaje("Robot regresado a la posición inicial.", Color.cyan);
+        if (gestorNiveles != null) gestorNiveles.OcultarBotonSiguiente();
+        MostrarMensaje("> [SYS] Posición inicial y nodos restaurados.", colorInfo);
     }
 
     public void NotificarResultado(bool exito, string mensaje)
     {
-        MostrarMensaje(mensaje, exito ? Color.green : Color.red);
+        string prefijo = exito ? "> [OK] " : "> [ERR] ";
+        MostrarMensaje(prefijo + mensaje, exito ? colorExito : colorError);
     }
 
     private void MostrarMensaje(string mensaje, Color colorFuente)
